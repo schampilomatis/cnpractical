@@ -78,12 +78,12 @@ public class TCPSegment {
 
         int total_length = PSEUDO_LENGTH + this.length;
         byte[] raw = new byte[total_length];
-        this.toArray(raw, PSEUDO_LENGTH );
+        this.toArray(raw, PSEUDO_LENGTH);
         ByteBuffer rawBuf = ByteBuffer.wrap(raw);
         rawBuf.putInt(SRC_ADDRESS,sourceAddress);
         rawBuf.putInt(DST_ADDRESS, destinationAddress);
         rawBuf.putShort(PRTCL, TCP_PROTOCOL);
-        rawBuf.putShort(LGTH, (short)this.length);
+        rawBuf.putShort(LGTH, (short) this.length);
 
         long sum = 0;
 
@@ -120,6 +120,18 @@ public class TCPSegment {
         buffer.putShort(UNUSED2, (short)0);
 
         System.arraycopy(buffer.array(), 0, dst, offset, this.length);
+
+    }
+
+    public boolean is(int flags){
+        return this.tcpFlags == flags;
+    }
+
+    public boolean isValid(TcpControlBlock tcb){
+        return (this.computeChecksum(tcb.tcb_their_ip_address, tcb.tcb_our_ip_address) == 0)
+                && this.sourcePort == tcb.tcb_their_port
+                && this.destinationPort == tcb.tcb_their_port
+                && this.ackNumber == tcb.tcb_our_expected_ack;
 
     }
 

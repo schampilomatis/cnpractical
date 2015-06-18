@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.Random;
 
 import nl.vu.cs.cn.IP.IpAddress;
-
+import nl.vu.cs.cn.util.util;
 /**
  * This class represents a TCP stack. It should be built on top of the IP stack
  * which is bound to a given IP address.
@@ -21,11 +21,8 @@ public class TCP {
      */
     public class Socket {
 
-        final byte SYN=10;
-        final byte SYNACK=26;
-        final byte DATA=24;
-        final byte FIN=25;
 
+        final int MAX_ATTEMPTS=10;
 
     	/* Hint: You probably need some socket specific data. */
 
@@ -62,18 +59,24 @@ public class TCP {
                 return false;
             }
 
-
+            tcb.tcb_their_ip_address = Integer.reverseBytes(dst.getAddress());
+            tcb.tcb_their_port = port;
             tcb.tcb_state = TcpControlBlock.ConnectionState.SYN_SENT;
             int initialSeqNumber = new Random().nextInt();
+            tcb.tcb_our_sequence_number = initialSeqNumber;
+            tcb.tcb_our_expected_ack = initialSeqNumber + 1;
             byte [] emptyData = new byte[0];
-            TCPSegment syn = new TCPSegment(tcb.tcb_our_port,port,initialSeqNumber,0,this.SYN,emptyData);
+            TCPSegment syn = new TCPSegment(tcb.tcb_our_port,port,initialSeqNumber , 0, util.SYN , emptyData);
 
-
+            if (send(syn, util.SYNACK)){
+                tcb.tcb_state = TcpControlBlock.ConnectionState.ESTABLISHED;
+            }
 
 
 
             return false;
         }
+
 
         /**
          * Accept a connection on this socket.
@@ -129,6 +132,34 @@ public class TCP {
 
             return false;
         }
+
+        private boolean send(TCPSegment segment, int expectedFlags){
+
+            int attempts = 0;
+
+            while (attempts < MAX_ATTEMPTS) {
+                try {
+                    sendSegment(segment, tcb);
+                    try {
+                        TCPSegment receivedSegment = receiveSegment();
+                        if (receivedSegment.is(expectedFlags) && receivedSegment.isValid(tcb)){
+                            return true;
+                        }else{
+                            attempts++;
+                        }
+
+                    }catch(Exception e){
+                        attempts++;
+                    }
+
+                } catch (IOException e) {
+                    attempts++;
+                }
+            }
+
+            return false;
+        }
+
     }
 
     private int sendSegment(TCPSegment tcpSeg,TcpControlBlock tcb) throws IOException{
@@ -136,7 +167,7 @@ public class TCP {
         int dstAddress = Integer.reverse(tcb.tcb_their_ip_address);
         int packetID = new Random().nextInt();
         byte[] data = new byte[tcpSeg.length()];
-        tcpSeg.toArray(data,0);
+        tcpSeg.toArray(data, 0);
         IP.Packet pck = new IP.Packet(dstAddress,IP.TCP_PROTOCOL,packetID,data,tcpSeg.length());
 
 
@@ -154,11 +185,7 @@ public class TCP {
     }
 
 
-    private boolean isValid(TCPSegment tcp,TcpControlBlock tcb){
 
-        return true;
-
-    }
 
 
     /**
