@@ -64,6 +64,7 @@ public class TCP {
             tcb.tcb_state = TcpControlBlock.ConnectionState.SYN_SENT;
             int initialSeqNumber = new Random().nextInt();
             tcb.tcb_our_sequence_number = initialSeqNumber;
+            tcb.tcb_their_sequence_num = 0;
             tcb.tcb_our_expected_ack = initialSeqNumber + 1;
             byte [] emptyData = new byte[0];
             TCPSegment syn = new TCPSegment(tcb, util.SYN , emptyData);
@@ -74,6 +75,7 @@ public class TCP {
                 tcb.tcb_state = TcpControlBlock.ConnectionState.ESTABLISHED;
                 tcb.tcb_our_sequence_number ++;
                 tcb.tcb_our_expected_ack ++;
+                tcb.tcb_their_sequence_num ++;
                 TCPSegment ack = new TCPSegment(tcb, util.DATA, emptyData);
                 try{
                     sendSegment(ack, tcb);
@@ -99,9 +101,13 @@ public class TCP {
             tcb.tcb_state = TcpControlBlock.ConnectionState.LISTEN;
             try {
                 while(true) {
-                    TCPSegment syn = receiveSegment(0);
+
+                    TCPSegment syn = receiveSegment(3);
+
                     if (syn.isValid(tcb, util.SYN)) {
+
                         tcb.tcb_state = TcpControlBlock.ConnectionState.SYN_RCVD;
+                        tcb.tcb_their_sequence_num ++;
                         TCPSegment synack = new TCPSegment(tcb, util.SYNACK, new byte[0]);
                         if (send(synack, util.DATA)) {
                             tcb.tcb_state = TcpControlBlock.ConnectionState.ESTABLISHED;
@@ -114,7 +120,7 @@ public class TCP {
 
 
             }catch(Exception e){
-                Log.i("socket error", e.getMessage());
+                Log.i("socket error", e.toString());
             }
         }
 
@@ -174,7 +180,7 @@ public class TCP {
                     try {
 
                         TCPSegment receivedSegment = receiveSegment(util.TIMEOUT);
-                        Log.i("IP " + IP.IpAddress.htoa(tcb.tcb_our_ip_address), "receive packet: " + receivedSegment.toString());
+                        Log.i("IP " + Integer.reverseBytes(tcb.tcb_our_ip_address), "receive packet: " + receivedSegment.toString());
 
                         if (receivedSegment.isValid(tcb, expectedFlags)){
                             tcb.tcb_their_sequence_num += 1;
@@ -203,7 +209,7 @@ public class TCP {
         int packetID = new Random().nextInt();
         byte[] data = new byte[tcpSeg.length()];
         tcpSeg.toArray(data, 0);
-        IP.Packet pck = new IP.Packet(dstAddress,IP.TCP_PROTOCOL,packetID,data,tcpSeg.length());
+        IP.Packet pck = new IP.Packet(dstAddress,IP. TCP_PROTOCOL, packetID,data, tcpSeg.length());
 
 
         return ip.ip_send(pck);
@@ -226,7 +232,7 @@ public class TCP {
      * Constructs a TCP stack for the given virtual address.
      * The virtual address for this TCP stack is then
      * 192.168.0.address.
-     *
+     *Log.i("IP: " + Integer.reverseBytes(tcb.tcb_our_ip_address) , "1");
      * @param address The last octet of the virtual IP address 1-254.
      * @throws IOException if the IP stack fails to initialize.
      */

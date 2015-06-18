@@ -10,7 +10,7 @@ public class Chat extends Activity {
 	class Server implements Runnable{
 		public void run(){
 			try {
-				TCP tcp = new TCP(10);
+				TCP tcp = new TCP(30);
 				TCP.Socket serversock = tcp.socket((short) 1000);
 				serversock.accept();
 			}catch(Exception e){
@@ -23,9 +23,9 @@ public class Chat extends Activity {
 		public void run(){
 			try {
 
-				TCP tcp = new TCP(20);
+				TCP tcp = new TCP(100);
 				TCP.Socket serversock = tcp.socket((short) 1000);
-				serversock.connect(IP.IpAddress.getAddress("192.168.0.10"),(short)1000);
+				serversock.connect(IP.IpAddress.getAddress("192.168.0.30"),(short)1000);
 
 			}catch(Exception e){
 				Log.i("exception", e.getMessage());

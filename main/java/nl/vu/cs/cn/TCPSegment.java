@@ -53,11 +53,13 @@ public class TCPSegment {
         this.ackNumber = buffer.getInt(ACK_NO);
         this.tcpFlags = buffer.get(FLAGS);
         this.checksum = buffer.getShort(CHECKSUM);
-        this.data = new byte[length-DATA];
-        buffer.get(this.data, DATA, pck.length);
+        this.data = new byte[pck.length-DATA];
+        if (this.data.length > 0) {
+            buffer.get(this.data, DATA, this.data.length);
+        }
         this.length = pck.length;
-        this.sourceIP = pck.source;
-        this.destinationIP = pck.destination;
+        this.sourceIP = Integer.reverseBytes(pck.source);
+        this.destinationIP = Integer.reverseBytes(pck.destination);
     }
 
     public TCPSegment(TcpControlBlock tcb, byte tcpFlags,  byte[] data) {
@@ -86,31 +88,36 @@ public class TCPSegment {
 
     public short computeChecksum(){
 
-        int total_length = PSEUDO_LENGTH + this.length;
+        int total_length =  this.length;
         byte[] raw = new byte[total_length];
-        this.toArray(raw, PSEUDO_LENGTH);
+        this.toArray(raw, 0);
         ByteBuffer rawBuf = ByteBuffer.wrap(raw);
-        rawBuf.putInt(SRC_ADDRESS,this.sourceIP);
-        rawBuf.putInt(DST_ADDRESS, this.destinationIP);
-        rawBuf.putShort(PRTCL, TCP_PROTOCOL);
-        rawBuf.putShort(LGTH, (short) this.length);
+//        rawBuf.putInt(SRC_ADDRESS,this.sourceIP);
+//        rawBuf.putInt(DST_ADDRESS, this.destinationIP);
+//        rawBuf.putShort(PRTCL, TCP_PROTOCOL);
+//        rawBuf.putShort(LGTH, (short) this.length);
 
         long sum = 0;
 
+        sum += (this.sourceIP >>> 16) + (this.sourceIP & 0xffff);
+        sum += (this.destinationIP >>> 16) + (this.destinationIP & 0xffff);
+        sum += (TCP_PROTOCOL);
+        sum += (this.length >>> 16) + (this.length & 0xffff);
+
+
         for (int i=0 ; i < total_length - 1; i += 2){
-            // isws xreiazetai &0xffff
-            sum += rawBuf.getShort(i);
+            sum += (rawBuf.getShort(i) & 0xffff);
         }
 
         if (total_length % 2 != 0){
             sum += (rawBuf.get(total_length - 1) & 0xffff) << 8;
         }
 
-        while (sum >65535){
+        while (sum > 65535){
             sum = (sum>>>16) + (sum & 0xffff);
         }
 
-        sum = -sum & 0xffff;
+        sum = ~sum & 0xffff;
 
         return (short) sum;
 
@@ -179,7 +186,7 @@ public class TCPSegment {
         }
 
         if(!check){
-            Log.i("IP: " + tcb.tcb_our_ip_address, "Invalid Segment: " + this.toString());
+            Log.i("IP: " + Integer.reverseBytes(tcb.tcb_our_ip_address) , "Invalid Segment: " + this.toString());
         }
 
         return check;
