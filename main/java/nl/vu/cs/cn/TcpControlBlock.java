@@ -1,7 +1,5 @@
 package nl.vu.cs.cn;
 
-import java.net.ConnectException;
-
 /**
  * Created by nikos on 17-6-15.
  */
@@ -11,7 +9,7 @@ import java.net.ConnectException;
 public class TcpControlBlock {
 
     enum ConnectionState {
-        CLOSED, READ_ONLY, WRITE_ONLY, ESTABLISHED,SYN_SENT
+        CLOSED, READ_ONLY, WRITE_ONLY, ESTABLISHED,SYN_SENT, LISTEN
     }
 
     static int TCB_BUF_SIZE = 8192;

@@ -2,6 +2,8 @@ package nl.vu.cs.cn;
 
 import java.nio.ByteBuffer;
 
+import nl.vu.cs.cn.util.util;
+
 /**
  * Created by stavri on 17-6-15.
  */
@@ -52,17 +54,18 @@ public class TCPSegment {
         this.length = length;
     }
 
-    public TCPSegment(short sourcePort, short destinationPort, int sequenceNumber,
-                     int ackNumber, byte tcpFlags,  byte[] data) {
+    public TCPSegment(TcpControlBlock tcb, byte tcpFlags,  byte[] data) {
 
-        this.sourcePort = sourcePort;
-        this.destinationPort = destinationPort;
-        this.sequenceNumber = sequenceNumber;
-        this.ackNumber = ackNumber;
+        this.sourcePort = tcb.tcb_our_port;
+        this.destinationPort = tcb.tcb_their_port;
+        this.sequenceNumber = tcb.tcb_our_sequence_number;
+        this.ackNumber = tcb.tcb_their_sequence_num;
         this.tcpFlags = tcpFlags;
         this.checksum = 0;
         this.data = data;
         this.length = DATA + data.length;
+
+        this.checksum = computeChecksum(tcb.tcb_our_ip_address, tcb.tcb_their_ip_address);
 
     }
 
@@ -123,12 +126,20 @@ public class TCPSegment {
 
     }
 
-    public boolean is(int flags){
-        return this.tcpFlags == flags;
-    }
+    public boolean isValid(TcpControlBlock tcb, int expectedFlags){
 
-    public boolean isValid(TcpControlBlock tcb){
-        return (this.computeChecksum(tcb.tcb_their_ip_address, tcb.tcb_our_ip_address) == 0)
+        boolean checkSeqNo;
+
+        if (expectedFlags == util.SYNACK){
+            checkSeqNo = true;
+            tcb.tcb_their_sequence_num = this.sequenceNumber;
+        }else{
+            checkSeqNo = tcb.tcb_their_sequence_num == this.sequenceNumber;
+        }
+
+        return checkSeqNo
+                &&(this.computeChecksum(tcb.tcb_their_ip_address, tcb.tcb_our_ip_address) == 0)
+                && this.tcpFlags == expectedFlags
                 && this.sourcePort == tcb.tcb_their_port
                 && this.destinationPort == tcb.tcb_their_port
                 && this.ackNumber == tcb.tcb_our_expected_ack;

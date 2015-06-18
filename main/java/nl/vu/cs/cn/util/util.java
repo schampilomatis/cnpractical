@@ -8,4 +8,8 @@ public class util {
     static public byte SYNACK=26;
     static public byte DATA=24;
     static public byte FIN=25;
+
+    static public int MAX_ATTEMPTS=10;
+    static public int TIMEOUT = 1;
+
 }

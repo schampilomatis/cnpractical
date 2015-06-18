@@ -1,6 +1,8 @@
 package nl.vu.cs.cn;
 
 
+import android.util.Log;
+
 import java.io.IOException;
 import java.util.Random;
 
@@ -22,7 +24,6 @@ public class TCP {
     public class Socket {
 
 
-        final int MAX_ATTEMPTS=10;
 
     	/* Hint: You probably need some socket specific data. */
 
@@ -53,7 +54,6 @@ public class TCP {
         public boolean connect(IpAddress dst, short port) {
 
             // Implement the connection side of the three-way handshake here.
-        	ip.getLocalAddress();
 
             if (tcb.tcb_state != TcpControlBlock.ConnectionState.CLOSED){
                 return false;
@@ -66,13 +66,17 @@ public class TCP {
             tcb.tcb_our_sequence_number = initialSeqNumber;
             tcb.tcb_our_expected_ack = initialSeqNumber + 1;
             byte [] emptyData = new byte[0];
-            TCPSegment syn = new TCPSegment(tcb.tcb_our_port,port,initialSeqNumber , 0, util.SYN , emptyData);
+            TCPSegment syn = new TCPSegment(tcb, util.SYN , emptyData);
 
             if (send(syn, util.SYNACK)){
                 tcb.tcb_state = TcpControlBlock.ConnectionState.ESTABLISHED;
+                tcb.tcb_our_sequence_number ++;
+                tcb.tcb_our_expected_ack ++;
+                TCPSegment ack = new TCPSegment(tcb, util.DATA, emptyData);
+
+
+                return true;
             }
-
-
 
             return false;
         }
@@ -85,7 +89,13 @@ public class TCP {
         public void accept() {
 
             // Implement the receive side of the three-way handshake here.
+            tcb.tcb_state = TcpControlBlock.ConnectionState.LISTEN;
+            try {
+                TCPSegment syn = receiveSegment(0);
 
+            }catch(Exception e){
+                Log.i("socket error", "accept failed");
+            }
         }
 
         /**
@@ -137,12 +147,12 @@ public class TCP {
 
             int attempts = 0;
 
-            while (attempts < MAX_ATTEMPTS) {
+            while (attempts < util.MAX_ATTEMPTS) {
                 try {
                     sendSegment(segment, tcb);
                     try {
-                        TCPSegment receivedSegment = receiveSegment();
-                        if (receivedSegment.is(expectedFlags) && receivedSegment.isValid(tcb)){
+                        TCPSegment receivedSegment = receiveSegment(util.TIMEOUT);
+                        if (receivedSegment.isValid(tcb, expectedFlags)){
                             return true;
                         }else{
                             attempts++;
@@ -175,12 +185,12 @@ public class TCP {
 
     }
 
-    private TCPSegment receiveSegment() throws IOException , InterruptedException{
+    private TCPSegment receiveSegment(int timeout) throws IOException , InterruptedException{
 
         IP.Packet pck = new IP.Packet();
-        ip.ip_receive_timeout(pck, 1);
+        ip.ip_receive_timeout(pck, timeout);
 
-        return new TCPSegment(pck.data,pck.length);
+        return new TCPSegment(pck.data, pck.length);
 
     }
 
