@@ -9,7 +9,7 @@ package nl.vu.cs.cn;
 public class TcpControlBlock {
 
     enum ConnectionState {
-        CLOSED, READ_ONLY, WRITE_ONLY, ESTABLISHED,SYN_SENT, LISTEN
+        CLOSED, READ_ONLY, WRITE_ONLY, ESTABLISHED,SYN_SENT, LISTEN, SYN_RCVD
     }
 
     static int TCB_BUF_SIZE = 8192;

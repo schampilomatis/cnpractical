@@ -73,8 +73,11 @@ public class TCP {
                 tcb.tcb_our_sequence_number ++;
                 tcb.tcb_our_expected_ack ++;
                 TCPSegment ack = new TCPSegment(tcb, util.DATA, emptyData);
-
-
+                try{
+                    sendSegment(ack, tcb);
+                }catch (Exception e){
+                    return false;
+                }
                 return true;
             }
 
@@ -91,7 +94,20 @@ public class TCP {
             // Implement the receive side of the three-way handshake here.
             tcb.tcb_state = TcpControlBlock.ConnectionState.LISTEN;
             try {
-                TCPSegment syn = receiveSegment(0);
+                while(true) {
+                    TCPSegment syn = receiveSegment(0);
+                    if (syn.isValid(tcb, util.SYN)) {
+                        tcb.tcb_state = TcpControlBlock.ConnectionState.SYN_RCVD;
+                        TCPSegment synack = new TCPSegment(tcb, util.SYNACK, new byte[0]);
+                        if (send(synack, util.DATA)) {
+                            tcb.tcb_state = TcpControlBlock.ConnectionState.ESTABLISHED;
+                            break;
+                        }
+                    }
+
+                }
+
+
 
             }catch(Exception e){
                 Log.i("socket error", "accept failed");
@@ -153,6 +169,7 @@ public class TCP {
                     try {
                         TCPSegment receivedSegment = receiveSegment(util.TIMEOUT);
                         if (receivedSegment.isValid(tcb, expectedFlags)){
+                            tcb.tcb_their_sequence_num += 1;
                             return true;
                         }else{
                             attempts++;
@@ -189,8 +206,7 @@ public class TCP {
 
         IP.Packet pck = new IP.Packet();
         ip.ip_receive_timeout(pck, timeout);
-
-        return new TCPSegment(pck.data, pck.length);
+        return new TCPSegment(pck);
 
     }
 

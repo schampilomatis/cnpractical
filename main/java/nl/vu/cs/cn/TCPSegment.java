@@ -37,12 +37,14 @@ public class TCPSegment {
     short checksum;
     int length;
     byte[] data;
+    int sourceIP;
+    int destinationIP;
 
 
     public TCPSegment(){}
 
-    public TCPSegment(byte[] rawSegment , int length){
-        ByteBuffer buffer = ByteBuffer.wrap(rawSegment);
+    public TCPSegment(IP.Packet pck){
+        ByteBuffer buffer = ByteBuffer.wrap(pck.data);
         this.sourcePort = buffer.getShort(SRC_PORT);
         this.destinationPort = buffer.getShort(DST_PORT);
         this.sequenceNumber = buffer.getInt(SEQ_NO);
@@ -50,8 +52,10 @@ public class TCPSegment {
         this.tcpFlags = buffer.get(FLAGS);
         this.checksum = buffer.getShort(CHECKSUM);
         this.data = new byte[length-DATA];
-        buffer.get(this.data, DATA, length);
-        this.length = length;
+        buffer.get(this.data, DATA, pck.length);
+        this.length = pck.length;
+        this.sourceIP = pck.source;
+        this.destinationIP = pck.destination;
     }
 
     public TCPSegment(TcpControlBlock tcb, byte tcpFlags,  byte[] data) {
@@ -64,8 +68,9 @@ public class TCPSegment {
         this.checksum = 0;
         this.data = data;
         this.length = DATA + data.length;
-
-        this.checksum = computeChecksum(tcb.tcb_our_ip_address, tcb.tcb_their_ip_address);
+        this.sourceIP = tcb.tcb_our_ip_address;
+        this.destinationIP = tcb.tcb_their_ip_address;
+        this.checksum = computeChecksum();
 
     }
 
@@ -77,14 +82,14 @@ public class TCPSegment {
         this.checksum = checksum;
     }
 
-    public short computeChecksum(int sourceAddress, int destinationAddress){
+    public short computeChecksum(){
 
         int total_length = PSEUDO_LENGTH + this.length;
         byte[] raw = new byte[total_length];
         this.toArray(raw, PSEUDO_LENGTH);
         ByteBuffer rawBuf = ByteBuffer.wrap(raw);
-        rawBuf.putInt(SRC_ADDRESS,sourceAddress);
-        rawBuf.putInt(DST_ADDRESS, destinationAddress);
+        rawBuf.putInt(SRC_ADDRESS,this.sourceIP);
+        rawBuf.putInt(DST_ADDRESS, this.destinationIP);
         rawBuf.putShort(PRTCL, TCP_PROTOCOL);
         rawBuf.putShort(LGTH, (short) this.length);
 
@@ -128,21 +133,51 @@ public class TCPSegment {
 
     public boolean isValid(TcpControlBlock tcb, int expectedFlags){
 
-        boolean checkSeqNo;
+        boolean check = (this.computeChecksum() == 0)
+                && this.tcpFlags == expectedFlags
+                && this.destinationPort == tcb.tcb_our_port
+                && this.destinationIP == tcb.tcb_our_ip_address;
 
-        if (expectedFlags == util.SYNACK){
-            checkSeqNo = true;
-            tcb.tcb_their_sequence_num = this.sequenceNumber;
-        }else{
-            checkSeqNo = tcb.tcb_their_sequence_num == this.sequenceNumber;
+        switch (expectedFlags){
+            case util.SYN:
+                if (check){
+                    tcb.tcb_their_ip_address = this.sourceIP;
+                    tcb.tcb_their_port = this.sourcePort;
+                    tcb.tcb_their_sequence_num = this.sequenceNumber;
+                }
+                break;
+
+            case util.SYNACK:
+
+                check = check
+                        && this.ackNumber == tcb.tcb_our_expected_ack
+                        && this.sourceIP == tcb.tcb_their_ip_address
+                        && this.sourcePort == tcb.tcb_their_port;
+
+                if (check){
+                    tcb.tcb_their_sequence_num = this.sequenceNumber;
+                }
+
+                break;
+
+
+            case util.DATA:
+
+                check = check
+                        && this.ackNumber == tcb.tcb_our_expected_ack
+                        && this.sourceIP == tcb.tcb_their_ip_address
+                        && this.sourcePort == tcb.tcb_their_port
+                        && this.sequenceNumber == tcb.tcb_their_sequence_num + 1;
+
+                break;
+
+
+
+
         }
 
-        return checkSeqNo
-                &&(this.computeChecksum(tcb.tcb_their_ip_address, tcb.tcb_our_ip_address) == 0)
-                && this.tcpFlags == expectedFlags
-                && this.sourcePort == tcb.tcb_their_port
-                && this.destinationPort == tcb.tcb_their_port
-                && this.ackNumber == tcb.tcb_our_expected_ack;
+        return check;
+
 
     }
 
