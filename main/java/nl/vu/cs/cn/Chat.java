@@ -4,22 +4,51 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 
-import nl.vu.cs.cn.TCP.Socket;
-
 public class Chat extends Activity {
+
+
+	class Server implements Runnable{
+		public void run(){
+			try {
+				TCP tcp = new TCP(10);
+				TCP.Socket serversock = tcp.socket((short) 1000);
+				serversock.accept();
+			}catch(Exception e){
+				Log.i("exception", e.getMessage());
+			}
+		}
+	}
+
+	class Client implements Runnable{
+		public void run(){
+			try {
+
+				TCP tcp = new TCP(20);
+				TCP.Socket serversock = tcp.socket((short) 1000);
+				serversock.connect(IP.IpAddress.getAddress("192.168.0.10"),(short)1000);
+
+			}catch(Exception e){
+				Log.i("exception", e.getMessage());
+			}
+		}
+	}
 
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-        try {
-            Socket a = new TCP(1).socket((short)50);
-			Log.i("test", "tipota");
-        }catch (Exception e){
-			Log.i("error", e.getMessage());
-			Log.i("test", "tipota");
-        }
+
+		Thread serverThread = new Thread(new Server());
+		Thread clientThread = new Thread(new Client());
+
+		Log.v("Ip 20", " result:" + IP.IpAddress.getAddress("192.168.0.20").getAddress());
+		Log.v("Ip 20 reversed", " result:" + Integer.reverseBytes(IP.IpAddress.getAddress(20).getAddress()));
+		Log.v("Ip 10", " result:" + IP.IpAddress.getAddress("192.168.0.10").getAddress());
+		Log.v("Ip 10 reversed", " result:" + Integer.reverseBytes(IP.IpAddress.getAddress(10).getAddress()));
+		serverThread.start();
+		clientThread.start();
+
 		// Connect various GUI components to the networking stack.
 	}
 

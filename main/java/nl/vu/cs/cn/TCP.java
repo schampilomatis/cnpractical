@@ -68,6 +68,8 @@ public class TCP {
             byte [] emptyData = new byte[0];
             TCPSegment syn = new TCPSegment(tcb, util.SYN , emptyData);
 
+            Log.i("IP: " + Integer.reverseBytes(tcb.tcb_our_ip_address), "CONNECTING TO IP: " + Integer.reverseBytes(tcb.tcb_their_ip_address));
+
             if (send(syn, util.SYNACK)){
                 tcb.tcb_state = TcpControlBlock.ConnectionState.ESTABLISHED;
                 tcb.tcb_our_sequence_number ++;
@@ -92,6 +94,8 @@ public class TCP {
         public void accept() {
 
             // Implement the receive side of the three-way handshake here.
+            Log.i("IP: " + Integer.reverseBytes(tcb.tcb_our_ip_address) , "ACCEPTING CONNECTIONS");
+
             tcb.tcb_state = TcpControlBlock.ConnectionState.LISTEN;
             try {
                 while(true) {
@@ -110,7 +114,7 @@ public class TCP {
 
 
             }catch(Exception e){
-                Log.i("socket error", "accept failed");
+                Log.i("socket error", e.getMessage());
             }
         }
 
@@ -165,9 +169,13 @@ public class TCP {
 
             while (attempts < util.MAX_ATTEMPTS) {
                 try {
+                    Log.i("IP " + Integer.reverseBytes(tcb.tcb_our_ip_address), "send packet: " + segment.toString());
                     sendSegment(segment, tcb);
                     try {
+
                         TCPSegment receivedSegment = receiveSegment(util.TIMEOUT);
+                        Log.i("IP " + IP.IpAddress.htoa(tcb.tcb_our_ip_address), "receive packet: " + receivedSegment.toString());
+
                         if (receivedSegment.isValid(tcb, expectedFlags)){
                             tcb.tcb_their_sequence_num += 1;
                             return true;
@@ -191,7 +199,7 @@ public class TCP {
 
     private int sendSegment(TCPSegment tcpSeg,TcpControlBlock tcb) throws IOException{
 
-        int dstAddress = Integer.reverse(tcb.tcb_their_ip_address);
+        int dstAddress = Integer.reverseBytes(tcb.tcb_their_ip_address);
         int packetID = new Random().nextInt();
         byte[] data = new byte[tcpSeg.length()];
         tcpSeg.toArray(data, 0);

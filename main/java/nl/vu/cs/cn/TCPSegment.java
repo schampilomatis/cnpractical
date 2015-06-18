@@ -1,5 +1,7 @@
 package nl.vu.cs.cn;
 
+import android.util.Log;
+
 import java.nio.ByteBuffer;
 
 import nl.vu.cs.cn.util.util;
@@ -174,6 +176,10 @@ public class TCPSegment {
 
 
 
+        }
+
+        if(!check){
+            Log.i("IP: " + tcb.tcb_our_ip_address, "Invalid Segment: " + this.toString());
         }
 
         return check;
